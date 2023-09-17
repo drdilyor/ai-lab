@@ -140,7 +140,7 @@ def main():
     load()
 
     try:
-        test_emnist()
+        train_emnist()
     finally:
         save()
 
