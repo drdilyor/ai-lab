@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<style>
+.grid {
+  background: black;
+  display: inline-grid;
+  grid-template-columns: repeat(28, 10px);
+  grid-template-rows: repeat(28, 10px);
+  user-select: none;
+}
+.btn {
+}
+</style>
+  </head>
+  <body>
+    <div class="grid">
+    </div>
+    <div>
+      <span>
+        <button class="btn">Calculate</button>
+        <button class="clear">Clear</button>
+      </span>
+      <div class="msg"></div>
+    </div>
+    <script>
+      const grid = document.querySelector('.grid')
+      const n = 28
+      const a = 10
+      grid.innerHTML = '<div class="grid-el"></div>'.repeat(n * n)
+      const getEl = (i, j) => grid.children.item(i* n + j)
+
+      let vals = []
+      const setVal =(i, j, x, force = false) => {
+        if (x < vals[i][j] && !force)
+          return
+        vals[i][j] = x
+        getEl(i, j).style.backgroundColor = `rgba(255, 255, 255, ${vals[i][j]})`
+      }
+      for (let i = 0; i < n; i++) {
+        vals.push([])
+        for (let j = 0; j < n; j++) {
+          vals[i].push(0)
+          setVal(i, j, 0)
+        }
+      }
+
+      let mouseDown = false
+      let prevx = 0, prevy = 0
+      grid.addEventListener('mousedown', () => mouseDown = true)
+      grid.addEventListener('mouseup', () => mouseDown = false)
+
+
+      grid.addEventListener('mousemove', function (event) {
+        console.log(mouseDown)
+        const rect = grid.getBoundingClientRect()
+        const mx = Math.round(event.pageX - rect.left)
+        const my = Math.round(event.pageY - rect.top)
+        if (!mouseDown) {
+          prevx = mx
+          prevy = my
+          return
+        }
+
+        const drawAt =(mx, my) => {
+          for (let i = 0; i < n; i++) {
+            for (let j = 0; j < n; j++) {
+              const x = a / 2 + j * a
+              const y = a / 2 + i * a
+              const dist = (y - my) ** 2 + (x - mx) ** 2
+              setVal(i, j, Math.max(0, Math.min(1.0, 100 / dist - .3)))
+            }
+          }
+        }
+
+        let dx = mx - prevx
+        let dy = my - prevy
+        drawAt(prevx + dx / 3, prevy + dy / 3)
+        drawAt(prevx + 2 * dx / 3, prevy + 2 * dy / 3)
+        drawAt(prevx + 3 * dx / 3, prevy + 3 * dy / 3)
+        prevx = mx
+        prevy = my
+      })
+
+      const predict = function() {
+        fetch('/predict', {
+          method: 'POST',
+          body: JSON.stringify({
+            data: vals.flat(),
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+          .then(res => res.json())
+          .then(prob => {
+            prob = prob.map((x, i) => [x, i])
+            prob.sort(([x], [y]) => y - x)
+            document.querySelector('.msg').innerHTML =
+              prob.map(([p, x]) => `<div>${x} (${(p * 100).toFixed(1)}%)</div>`).join('')
+          })
+      }
+
+      document.querySelector('.btn').addEventListener('click', predict)
+      document.querySelector('.clear').addEventListener('click', () => {
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) {
+            setVal(i, j, 0, true)
+          }
+        }
+      })
+    </script>
+  </body>
+</html>
